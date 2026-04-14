@@ -1,0 +1,24 @@
+# 設備ごとの閾値定義
+# step1_histogram.py で閾値候補を確認後、ここに記入する
+#
+# 書式:
+#   machines:
+#     "<machine_id>":
+#       - state: stopped      # 状態名（stopped / standby / running / high_load 等）
+#         lower_kw: null      # null = 下限なし
+#         upper_kw: 0.5       # null = 上限なし
+#
+# 例:
+# machines:
+#   "01":
+#     - state: stopped
+#       lower_kw: null
+#       upper_kw: 0.5
+#     - state: standby
+#       lower_kw: 0.5
+#       upper_kw: 5.0
+#     - state: running
+#       lower_kw: 5.0
+#       upper_kw: null
+
+machines: {}
