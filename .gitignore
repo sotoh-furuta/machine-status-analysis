@@ -210,3 +210,6 @@ __marimo__/
 config/db.yaml
 output/histograms/*
 !output/histograms/.gitkeep
+
+# Claude Code local settings
+.claude/settings.local.json

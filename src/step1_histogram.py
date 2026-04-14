@@ -99,7 +99,7 @@ def _plot_hourly_profile(ax: plt.Axes, df: pd.DataFrame, machine_id: str) -> Non
     hour = local_dt.dt.hour
     groups = [df.loc[hour == h, "active_power_kw"].dropna().values for h in range(24)]
 
-    bp = ax.boxplot(
+    ax.boxplot(
         groups,
         positions=range(24),
         widths=0.6,

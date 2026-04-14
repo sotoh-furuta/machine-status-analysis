@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(mkdir -p C:/Users/Gendou2/machine-status-analysis/config C:/Users/Gendou2/machine-status-analysis/sql/queries C:/Users/Gendou2/machine-status-analysis/src/utils C:/Users/Gendou2/machine-status-analysis/output/histograms)",
-      "Bash(touch C:/Users/Gendou2/machine-status-analysis/output/histograms/.gitkeep C:/Users/Gendou2/machine-status-analysis/src/__init__.py C:/Users/Gendou2/machine-status-analysis/src/utils/__init__.py)"
+      "Bash(touch C:/Users/Gendou2/machine-status-analysis/output/histograms/.gitkeep C:/Users/Gendou2/machine-status-analysis/src/__init__.py C:/Users/Gendou2/machine-status-analysis/src/utils/__init__.py)",
+      "Bash(.venv/Scripts/pip list:*)",
+      "Bash(.venv/Scripts/pip install:*)"
     ]
   }
 }

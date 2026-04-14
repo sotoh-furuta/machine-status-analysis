@@ -5,8 +5,6 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 import pandas as pd
-import psycopg2
-import psycopg2.extras
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -39,17 +37,7 @@ def fetch_power_data(
     Returns:
         DataFrame: columns = [measured_at, active_power_kw]
     """
-    sql = text(
-        f"""
-        SELECT measured_at, active_power_kw
-        FROM {_TABLE_RAW}
-        WHERE machine_id  = :mid
-          AND measured_at >= NOW() - INTERVAL ':days days'
-          AND active_power_kw IS NOT NULL
-        ORDER BY measured_at
-        """
-    )
-    # INTERVAL には bind parameter が使えないため f-string で埋め込む
+    # INTERVAL には bind parameter が使えないため days は int 型のまま f-string で埋め込む
     sql = text(
         f"""
         SELECT measured_at, active_power_kw

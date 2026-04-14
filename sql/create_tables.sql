@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS "IoT_schema".machine_status (
     PRIMARY KEY (machine_id, measured_at)
 );
 
-CREATE INDEX IF NOT EXISTS idx_machine_status_machine_id
-    ON "IoT_schema".machine_status (machine_id);
+-- machine_id 単独での前方一致は PRIMARY KEY (machine_id, measured_at) で賄えるため省略
 CREATE INDEX IF NOT EXISTS idx_machine_status_measured_at
     ON "IoT_schema".machine_status (measured_at);
 
