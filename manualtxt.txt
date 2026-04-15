@@ -1,0 +1,146 @@
+以下が本ツールの使い方ガイドです。
+
+---
+
+# machine-status-analysis 使い方ガイド
+
+IoT 計測済み設備の電力データから稼働状態を分類し、待機時間・稼働率を可視化するツールです。
+
+---
+
+## 1. セットアップ
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate  # Mac/Linux
+
+pip install -r requirements.txt
+```
+
+---
+
+## 2. DB 設定
+
+### 設定ファイルの場所
+
+```
+config/db.yaml          ← 実際に使うファイル（.gitignore 対象、手動作成が必要）
+config/db.yaml.example  ← テンプレート
+```
+
+### 手順
+
+```bash
+cp config/db.yaml.example config/db.yaml
+# config/db.yaml をエディタで編集
+```
+
+### `config/db.yaml` の書式
+
+```yaml
+host: localhost       # DBホスト名 or IPアドレス
+port: 5432            # ポート番号
+dbname: your_db       # データベース名
+user: your_user       # ユーザー名
+password: your_pass   # パスワード
+```
+
+このファイルは `src/utils/config.py:14` の `load_db_config()` が読み込み、`src/utils/db.py:17` でDSNに変換されます。
+
+---
+
+## 3. 接続テーブル一覧
+
+すべてのテーブルはスキーマ `"IoT_schema"` に属します（`sql/create_tables.sql` および `src/utils/db.py:13-14` で定義）。
+
+| テーブル / ビュー | 役割 | 参照箇所 |
+|---|---|---|
+| `"IoT_schema".energy_raw` | **入力元**。1分粒度の電力計測値（`machine_id`, `measured_at`, `active_power_kw`）| `src/utils/db.py:13` |
+| `"IoT_schema".machine_status` | **出力先**。各レコードに状態ラベルを付与した分類結果 | `src/utils/db.py:14` |
+| `"IoT_schema".machine_thresholds` | 閾値マスタ（参照用テーブル、`thresholds.yaml` とは別） | `sql/create_tables.sql:5` |
+| `"IoT_schema".machine_daily_summary` | 日別集計テーブル（稼働率・待機時間など） | `sql/create_tables.sql:33` |
+| `"IoT_schema".v_machine_daily_summary` | 上記の動的ビュー版（`machine_status` から算出） | `sql/create_tables.sql:51` |
+
+> **スキーマ名の変更が必要な場合** は `sql/create_tables.sql` 内の `"IoT_schema"` をすべて置換してください。テーブル名定数は `src/utils/db.py:13-14` の `_TABLE_RAW` / `_TABLE_STATUS` に集約されているので、そこも合わせて変更してください。
+
+### テーブル作成（初回のみ）
+
+```bash
+psql -h <host> -U <user> -d <dbname> -f sql/create_tables.sql
+```
+
+---
+
+## 4. 分析フロー
+
+### Step 0: データ確認
+
+`sql/step0_check_data.sql` をDBクライアントで実行します。  
+対象テーブルは `"IoT_schema".energy_raw`（クエリ内 2行目にコメント記載）。
+
+```
+machine_id 一覧・計測期間・NULLレコード数・カバレッジ% を確認する
+```
+
+### Step 1: 電力分布グラフ生成 → 閾値候補の確認
+
+```bash
+python src/step1_histogram.py               # 全設備
+python src/step1_histogram.py --machine-id 01  # 特定設備
+python src/step1_histogram.py --days 90        # 直近90日
+```
+
+- グラフは `output/histograms/` に保存
+- コンソールに表示される **閾値候補 (kW)** を `config/thresholds.yaml` に記入
+
+### `config/thresholds.yaml` の書式
+
+```yaml
+machines:
+  "01":
+    - state: stopped
+      lower_kw: null    # null = 下限なし
+      upper_kw: 0.5
+    - state: standby
+      lower_kw: 0.5
+      upper_kw: 5.0
+    - state: running
+      lower_kw: 5.0
+      upper_kw: null    # null = 上限なし
+```
+
+### Step 2: 分類・DB書き込み
+
+```bash
+python src/step2_classify.py               # thresholds.yaml に定義済みの設備を処理
+python src/step2_classify.py --machine-id 01  # 特定設備のみ
+python src/step2_classify.py --dry-run        # DB書き込みなしで確認
+python src/step2_classify.py --all            # 閾値未設定の設備もフォールバックで処理
+```
+
+書き込み先: `"IoT_schema".machine_status`（upsert。`src/utils/db.py:67` の `upsert_status()`）
+
+---
+
+## 5. Grafana 連携
+
+`sql/queries/` 以下のクエリをそのままパネルに貼り付けて使えます。
+
+| ファイル | 用途 |
+|---|---|
+| `grafana_daily_summary.sql` | 日別稼働率・待機時間（Bar / Time series）|
+| `grafana_status_timeline.sql` | 状態タイムライン |
+
+変数: `$machine_id`、`$__timeFrom`、`$__timeTo` をGrafanaダッシュボード変数で設定してください。
+
+---
+
+## まとめ：設定が必要なファイル
+
+| ファイル | 何を設定するか |
+|---|---|
+| `config/db.yaml` | DB接続情報（host / port / dbname / user / password）|
+| `config/thresholds.yaml` | 設備ごとの電力閾値（状態名・上下限kW）|
+| `sql/create_tables.sql` | スキーマ名を変更する場合は `"IoT_schema"` を置換 |
+| `src/utils/db.py:13-14` | テーブル名を変更する場合は `_TABLE_RAW` / `_TABLE_STATUS` を修正 |
