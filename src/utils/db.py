@@ -40,10 +40,10 @@ def fetch_power_data(
     # INTERVAL には bind parameter が使えないため days は int 型のまま f-string で埋め込む
     sql = text(
         f"""
-        SELECT measured_at, active_power_kw
+        SELECT time AS measured_at, active_power_kw
         FROM {_TABLE_RAW}
         WHERE machine_id  = :mid
-          AND measured_at >= NOW() - INTERVAL '{days} days'
+          AND time >= NOW() - INTERVAL '{days} days'
           AND active_power_kw IS NOT NULL
         ORDER BY measured_at
         """
